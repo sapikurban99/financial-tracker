@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Financial Tracker</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <h1>Financial Tracker</h1>
+    <p class="subtitle">Catat pemasukan, pengeluaran, anggaran, dan dompet dalam satu tempat.</p>
+  </header>
+
+  <nav class="tabs" aria-label="Navigasi utama">
+    <button data-view="beranda" class="active">Beranda</button>
+    <button data-view="transaksi">Transaksi</button>
+    <button data-view="laporan">Laporan</button>
+    <button data-view="anggaran">Anggaran</button>
+    <button data-view="dompet">Dompet</button>
+    <button data-view="kategori">Kategori</button>
+  </nav>
+
+  <main>
+    <div id="sample-banner" class="banner" hidden>
+      <strong>Data contoh (ilustrasi saja).</strong>
+      <span>Angka di bawah ini bukan data asli siapa pun. Gunakan untuk mencoba aplikasi, lalu hapus sebelum memasukkan data Anda sendiri.</span>
+      <button id="clear-sample-btn" type="button">Hapus Data Contoh</button>
+    </div>
+
+    <!-- BERANDA -->
+    <section id="view-beranda" class="view active">
+      <div class="row">
+        <label>Bulan
+          <input type="month" id="dashboard-month" />
+        </label>
+        <button id="load-sample-btn" type="button">Muat Data Contoh</button>
+        <button id="export-csv-btn" type="button">Ekspor CSV</button>
+        <label class="file-label">Impor CSV
+          <input type="file" id="import-csv-input" accept=".csv,text/csv" hidden />
+        </label>
+      </div>
+
+      <div class="cards">
+        <div class="card"><span>Total Masuk</span><strong id="total-in">Rp 0</strong></div>
+        <div class="card"><span>Total Keluar</span><strong id="total-out">Rp 0</strong></div>
+        <div class="card"><span>Selisih (Masuk - Keluar)</span><strong id="net-total">Rp 0</strong></div>
+        <div class="card"><span>Total Saldo Dompet</span><strong id="total-balance">Rp 0</strong></div>
+      </div>
+
+      <h2>Transaksi Terbaru</h2>
+      <div id="recent-list" class="list"></div>
+    </section>
+
+    <!-- TRANSAKSI -->
+    <section id="view-transaksi" class="view">
+      <h2>Tambah / Ubah Transaksi</h2>
+      <form id="transaction-form" class="form">
+        <input type="hidden" id="tx-id" />
+        <label>Tanggal dan Waktu
+          <input type="datetime-local" id="tx-date" required />
+        </label>
+        <label>Judul / Deskripsi
+          <input type="text" id="tx-title" placeholder="Contoh: Belanja harian" required />
+        </label>
+        <label>Kategori
+          <select id="tx-category" required></select>
+        </label>
+        <label>Dompet
+          <select id="tx-wallet" required></select>
+        </label>
+        <label>Jumlah (Rp)
+          <input type="number" id="tx-amount" min="0" step="1" placeholder="0" required />
+        </label>
+        <label>Arah
+          <select id="tx-direction" required>
+            <option value="in">Masuk</option>
+            <option value="out" selected>Keluar</option>
+            <option value="transfer">Transfer</option>
+          </select>
+        </label>
+        <button type="submit" id="tx-submit">Simpan Transaksi</button>
+        <button type="button" id="tx-cancel" hidden>Batalkan Ubah</button>
+      </form>
+      <p class="hint">Transfer dicatat sebagai perpindahan, bukan pemasukan atau pengeluaran, sehingga tidak memengaruhi total masuk, total keluar, atau saldo di atas.</p>
+
+      <h2>Filter Transaksi</h2>
+      <div class="row filters">
+        <label>Jenis
+          <select id="filter-type">
+            <option value="">Semua</option>
+            <option value="in">Masuk</option>
+            <option value="out">Keluar</option>
+            <option value="transfer">Transfer</option>
+          </select>
+        </label>
+        <label>Kategori
+          <select id="filter-category"><option value="">Semua</option></select>
+        </label>
+        <label>Dompet
+          <select id="filter-wallet"><option value="">Semua</option></select>
+        </label>
+        <label>Cari
+          <input type="search" id="filter-search" placeholder="Cari judul..." />
+        </label>
+        <label>Bulan
+          <input type="month" id="filter-month" />
+        </label>
+        <label>Dari Tanggal
+          <input type="date" id="filter-start" />
+        </label>
+        <label>Sampai Tanggal
+          <input type="date" id="filter-end" />
+        </label>
+        <button id="clear-filters-btn" type="button">Hapus Filter</button>
+      </div>
+
+      <h2>Daftar Transaksi</h2>
+      <div id="transaction-list" class="list"></div>
+    </section>
+
+    <!-- LAPORAN -->
+    <section id="view-laporan" class="view">
+      <h2>Laporan</h2>
+      <div class="row">
+        <label>Bulan
+          <input type="month" id="report-month" />
+        </label>
+      </div>
+      <h3>Pengeluaran per Kategori</h3>
+      <div id="category-breakdown" class="list"></div>
+      <h3>Saldo per Dompet</h3>
+      <div id="report-wallets" class="list"></div>
+    </section>
+
+    <!-- ANGGARAN -->
+    <section id="view-anggaran" class="view">
+      <h2>Anggaran</h2>
+      <div class="row">
+        <label>Bulan
+          <input type="month" id="budget-month" />
+        </label>
+      </div>
+      <div class="cards">
+        <div class="card"><span>Total Anggaran</span><strong id="budget-total">Rp 0</strong></div>
+        <div class="card"><span>Total Terpakai</span><strong id="budget-used">Rp 0</strong></div>
+        <div class="card"><span>Sisa Anggaran</span><strong id="budget-remaining">Rp 0</strong></div>
+        <div class="card"><span>Uang Harian (Sisa / Hari dalam Bulan)</span><strong id="budget-daily">Rp 0</strong></div>
+      </div>
+      <p class="hint">Uang harian dihitung dari sisa anggaran dibagi jumlah hari dalam bulan yang dipilih. Jika tidak ada bulan dipilih, hitungan memakai semua transaksi yang ada.</p>
+      <h3>Anggaran per Kategori</h3>
+      <form id="budget-form" class="form">
+        <label>Kategori
+          <select id="budget-category"></select>
+        </label>
+        <label>Anggaran (Rp)
+          <input type="number" id="budget-amount" min="0" step="1" required />
+        </label>
+        <button type="submit">Simpan Anggaran</button>
+      </form>
+      <div id="budget-list" class="list"></div>
+    </section>
+
+    <!-- DOMPET -->
+    <section id="view-dompet" class="view">
+      <h2>Dompet</h2>
+      <form id="wallet-form" class="form">
+        <label>Nama Dompet
+          <input type="text" id="wallet-name" placeholder="Contoh: Dompet Utama" required />
+        </label>
+        <label>Saldo Awal (Rp)
+          <input type="number" id="wallet-initial" min="0" step="1" value="0" required />
+        </label>
+        <button type="submit">Tambah Dompet</button>
+      </form>
+      <div id="wallet-list" class="list"></div>
+    </section>
+
+    <!-- KATEGORI -->
+    <section id="view-kategori" class="view">
+      <h2>Kategori</h2>
+      <form id="category-form" class="form">
+        <label>Nama Kategori
+          <input type="text" id="category-name" placeholder="Contoh: Hiburan" required />
+        </label>
+        <button type="submit">Tambah Kategori</button>
+      </form>
+      <div id="category-list" class="list"></div>
+    </section>
+  </main>
+
+  <footer>
+    <p>Data hanya tersimpan di browser Anda (localStorage). Tidak ada backend dan tidak ada data yang dikirim ke server.</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
