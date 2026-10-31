@@ -4,57 +4,78 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Financial Tracker</title>
+  <meta name="description" content="Pencatat keuangan pribadi: transaksi, anggaran, dompet, kategori, laporan, dan data Supabase hanya baca." />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <header>
-    <h1>Financial Tracker</h1>
-    <p class="subtitle">Catat pemasukan, pengeluaran, anggaran, dan dompet dalam satu tempat.</p>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div>
+        <h1>Financial Tracker</h1>
+        <p class="subtitle">Pemasukan, pengeluaran, anggaran, dan dompet dalam satu tempat.</p>
+      </div>
+      <button id="theme-toggle" type="button" class="ghost" aria-label="Ubah mode gelap atau terang">Mode Gelap</button>
+    </div>
+    <nav class="tabs" aria-label="Navigasi utama">
+      <button data-view="beranda" class="active">Beranda</button>
+      <button data-view="transaksi">Transaksi</button>
+      <button data-view="laporan">Laporan</button>
+      <button data-view="anggaran">Anggaran</button>
+      <button data-view="dompet">Dompet</button>
+      <button data-view="kategori">Kategori</button>
+      <button data-view="supabase">Supabase</button>
+    </nav>
   </header>
-
-  <nav class="tabs" aria-label="Navigasi utama">
-    <button data-view="beranda" class="active">Beranda</button>
-    <button data-view="transaksi">Transaksi</button>
-    <button data-view="laporan">Laporan</button>
-    <button data-view="anggaran">Anggaran</button>
-    <button data-view="dompet">Dompet</button>
-    <button data-view="kategori">Kategori</button>
-    <button data-view="supabase">Supabase</button>
-  </nav>
 
   <main>
     <div id="sample-banner" class="banner" hidden>
       <strong>Data contoh (ilustrasi saja).</strong>
       <span>Angka di bawah ini bukan data asli siapa pun. Gunakan untuk mencoba aplikasi, lalu hapus sebelum memasukkan data Anda sendiri.</span>
-      <button id="clear-sample-btn" type="button">Hapus Data Contoh</button>
+      <button id="clear-sample-btn" type="button" class="danger">Hapus Data Contoh</button>
     </div>
 
     <!-- BERANDA -->
-    <section id="view-beranda" class="view active">
+    <section id="view-beranda" class="view active" aria-label="Beranda">
+      <div class="section-head">
+        <h2>Ringkasan</h2>
+        <div class="toolbar">
+          <button id="load-sample-btn" type="button" class="ghost">Muat Data Contoh</button>
+          <button id="export-csv-btn" type="button" class="ghost">Ekspor CSV</button>
+          <button id="export-json-btn" type="button" class="ghost">Ekspor JSON</button>
+          <label class="file-label">Impor CSV
+            <input type="file" id="import-csv-input" accept=".csv,text/csv" hidden />
+          </label>
+          <label class="file-label">Impor JSON
+            <input type="file" id="import-json-input" accept=".json,application/json" hidden />
+          </label>
+        </div>
+      </div>
       <div class="row">
         <label>Bulan
           <input type="month" id="dashboard-month" />
         </label>
-        <button id="load-sample-btn" type="button">Muat Data Contoh</button>
-        <button id="export-csv-btn" type="button">Ekspor CSV</button>
-        <label class="file-label">Impor CSV
-          <input type="file" id="import-csv-input" accept=".csv,text/csv" hidden />
-        </label>
       </div>
-
       <div class="cards">
-        <div class="card"><span>Total Masuk</span><strong id="total-in">Rp 0</strong></div>
-        <div class="card"><span>Total Keluar</span><strong id="total-out">Rp 0</strong></div>
+        <div class="card"><span>Total Masuk</span><strong id="total-in" class="positive">Rp 0</strong></div>
+        <div class="card"><span>Total Keluar</span><strong id="total-out" class="negative">Rp 0</strong></div>
         <div class="card"><span>Selisih (Masuk - Keluar)</span><strong id="net-total">Rp 0</strong></div>
         <div class="card"><span>Total Saldo Dompet</span><strong id="total-balance">Rp 0</strong></div>
       </div>
-
-      <h2>Transaksi Terbaru</h2>
+      <div class="chart-card">
+        <h3>Tren 12 Bulan Terakhir</h3>
+        <p class="hint">Masuk dan keluar per bulan. Transfer tidak dihitung sebagai masuk atau keluar.</p>
+        <div id="trend-chart"></div>
+        <div class="chart-legend">
+          <span><span class="swatch" style="background:#15803d"></span>Masuk</span>
+          <span><span class="swatch" style="background:#b91c1c"></span>Keluar</span>
+        </div>
+      </div>
+      <h3>Transaksi Terbaru</h3>
       <div id="recent-list" class="list"></div>
     </section>
 
     <!-- TRANSAKSI -->
-    <section id="view-transaksi" class="view">
+    <section id="view-transaksi" class="view" aria-label="Transaksi">
       <h2>Tambah / Ubah Transaksi</h2>
       <form id="transaction-form" class="form">
         <input type="hidden" id="tx-id" />
@@ -67,8 +88,11 @@
         <label>Kategori
           <select id="tx-category" required></select>
         </label>
-        <label>Dompet
+        <label>Dompet Asal
           <select id="tx-wallet" required></select>
+        </label>
+        <label id="tx-wallet-to-wrap" hidden>Dompet Tujuan (untuk transfer)
+          <select id="tx-wallet-to"></select>
         </label>
         <label>Jumlah (Rp)
           <input type="number" id="tx-amount" min="0" step="1" placeholder="0" required />
@@ -80,10 +104,12 @@
             <option value="transfer">Transfer</option>
           </select>
         </label>
-        <button type="submit" id="tx-submit">Simpan Transaksi</button>
-        <button type="button" id="tx-cancel" hidden>Batalkan Ubah</button>
+        <div class="form-actions">
+          <button type="submit" id="tx-submit">Simpan Transaksi</button>
+          <button type="button" id="tx-cancel" class="ghost" hidden>Batalkan Ubah</button>
+        </div>
       </form>
-      <p class="hint">Transfer dicatat sebagai perpindahan, bukan pemasukan atau pengeluaran, sehingga tidak memengaruhi total masuk, total keluar, atau saldo di atas.</p>
+      <p class="hint">Transfer memindahkan uang dari dompet asal ke dompet tujuan. Transfer tidak dihitung sebagai pemasukan atau pengeluaran, tetapi mengubah saldo kedua dompet.</p>
 
       <h2>Filter Transaksi</h2>
       <div class="row filters">
@@ -104,6 +130,15 @@
         <label>Cari
           <input type="search" id="filter-search" placeholder="Cari judul..." />
         </label>
+        <label>Urutkan
+          <select id="filter-sort">
+            <option value="date-desc">Tanggal terbaru</option>
+            <option value="date-asc">Tanggal terlama</option>
+            <option value="amount-desc">Jumlah terbesar</option>
+            <option value="amount-asc">Jumlah terkecil</option>
+            <option value="title-asc">Judul A-Z</option>
+          </select>
+        </label>
         <label>Bulan
           <input type="month" id="filter-month" />
         </label>
@@ -113,29 +148,43 @@
         <label>Sampai Tanggal
           <input type="date" id="filter-end" />
         </label>
-        <button id="clear-filters-btn" type="button">Hapus Filter</button>
+        <button id="clear-filters-btn" type="button" class="ghost">Hapus Filter</button>
       </div>
 
-      <h2>Daftar Transaksi</h2>
+      <div class="section-head">
+        <h2>Daftar Transaksi</h2>
+        <p id="transaction-count" class="hint"></p>
+      </div>
       <div id="transaction-list" class="list"></div>
+      <div class="pagination">
+        <span id="transaction-page-label" class="hint"></span>
+        <div class="pager">
+          <button id="transaction-prev-btn" type="button" class="ghost">Sebelumnya</button>
+          <button id="transaction-next-btn" type="button" class="ghost">Berikutnya</button>
+        </div>
+      </div>
     </section>
 
     <!-- LAPORAN -->
-    <section id="view-laporan" class="view">
+    <section id="view-laporan" class="view" aria-label="Laporan">
       <h2>Laporan</h2>
       <div class="row">
         <label>Bulan
           <input type="month" id="report-month" />
         </label>
       </div>
-      <h3>Pengeluaran per Kategori</h3>
+      <div class="chart-card">
+        <h3>Pengeluaran per Kategori</h3>
+        <div id="category-chart"></div>
+      </div>
+      <h3>Rincian Pengeluaran per Kategori</h3>
       <div id="category-breakdown" class="list"></div>
       <h3>Saldo per Dompet</h3>
       <div id="report-wallets" class="list"></div>
     </section>
 
     <!-- ANGGARAN -->
-    <section id="view-anggaran" class="view">
+    <section id="view-anggaran" class="view" aria-label="Anggaran">
       <h2>Anggaran</h2>
       <div class="row">
         <label>Bulan
@@ -163,7 +212,7 @@
     </section>
 
     <!-- DOMPET -->
-    <section id="view-dompet" class="view">
+    <section id="view-dompet" class="view" aria-label="Dompet">
       <h2>Dompet</h2>
       <form id="wallet-form" class="form">
         <label>Nama Dompet
@@ -178,7 +227,7 @@
     </section>
 
     <!-- KATEGORI -->
-    <section id="view-kategori" class="view">
+    <section id="view-kategori" class="view" aria-label="Kategori">
       <h2>Kategori</h2>
       <form id="category-form" class="form">
         <label>Nama Kategori
@@ -190,7 +239,7 @@
     </section>
 
     <!-- SUPABASE -->
-    <section id="view-supabase" class="view">
+    <section id="view-supabase" class="view" aria-label="Supabase">
       <h2>Supabase</h2>
       <p class="hint">Opsional dan hanya baca. Masukkan URL dan publishable key Supabase Anda di sini. Nilai tersebut hanya tersimpan di browser ini (localStorage) dan tidak pernah ditulis ke file repo. Untuk versi framework/Vercel di masa depan, gunakan variabel lingkungan NEXT_PUBLIC_SUPABASE_URL dan NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY di pengaturan proyek deployment, bukan di repo. Jalankan file SQL moni terlebih dahulu di Supabase agar tabel moni_monthly dan moni_monthly_categories tersedia.</p>
       <form id="supabase-form" class="form">
@@ -200,13 +249,14 @@
         <label>Supabase Publishable Key
           <input type="password" id="supabase-key" placeholder="YOUR_PUBLISHABLE_KEY" autocomplete="off" />
         </label>
-        <button type="submit">Simpan Pengaturan Supabase</button>
-        <button type="button" id="supabase-test-btn">Uji Koneksi</button>
-        <button type="button" id="supabase-load-btn">Muat Data Supabase</button>
-        <button type="button" id="supabase-clear-btn">Hapus Pengaturan Supabase</button>
+        <div class="form-actions">
+          <button type="submit">Simpan Pengaturan Supabase</button>
+          <button type="button" id="supabase-test-btn" class="ghost">Uji Koneksi</button>
+          <button type="button" id="supabase-load-btn">Muat Data Supabase</button>
+          <button type="button" id="supabase-clear-btn" class="ghost danger">Hapus Pengaturan Supabase</button>
+        </div>
       </form>
       <p id="supabase-status" class="status">Belum ada pengaturan Supabase yang disimpan.</p>
-
       <h3>Data Bulanan Supabase</h3>
       <div class="row">
         <label>Bulan Supabase
@@ -226,9 +276,42 @@
   </main>
 
   <footer>
-    <p>Data hanya tersimpan di browser Anda (localStorage). Tidak ada backend dan tidak ada data yang dikirim ke server.</p>
+    <p>Data hanya tersimpan di browser Anda (localStorage). Tidak ada backend dan tidak ada data yang dikirim ke server, kecuali saat Anda sengaja memuat data dari Supabase Anda sendiri.</p>
   </footer>
 
-  <script src="app.js"></script>
+  <div id="toast-container" aria-live="polite"></div>
+
+  <div id="confirm-backdrop" class="modal-backdrop" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+      <h3 id="confirm-title">Konfirmasi</h3>
+      <p id="confirm-message"></p>
+      <div class="modal-actions">
+        <button id="confirm-cancel-btn" type="button" class="ghost">Batal</button>
+        <button id="confirm-ok-btn" type="button" class="danger">Ya, Lanjutkan</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="import-backdrop" class="modal-backdrop" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="import-title">
+      <h3 id="import-title">Pratinjau Impor</h3>
+      <p id="import-summary" class="hint"></p>
+      <div id="import-preview"></div>
+      <div class="modal-actions">
+        <button id="import-cancel-btn" type="button" class="ghost">Batal</button>
+        <button id="import-confirm-btn" type="button">Impor Data Ini</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/utils.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/transactions.js"></script>
+  <script src="js/finance.js"></script>
+  <script src="js/import-export.js"></script>
+  <script src="js/supabase.js"></script>
+  <script src="js/main.js"></script>
 </body>
 </html>

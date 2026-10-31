@@ -1,8 +1,7 @@
 # Financial Tracker
 
-Aplikasi pencatat keuangan pribadi yang sederhana, statis, dan tanpa backend.
-Buka `index.html` di browser, tidak perlu build, tidak perlu server, dan tidak
-perlu instalasi.
+Aplikasi pencatat keuangan pribadi yang statis, tanpa backend, dan tanpa
+build step. Buka `index.html` di browser, tidak perlu instalasi.
 
 Struktur ini terinspirasi dari tata letak umum aplikasi pencatat keuangan
 seperti moni.id (Beranda, Transaksi, Laporan, Anggaran, Dompet, Kategori),
@@ -19,32 +18,43 @@ tanpa menyalin merek, logo, atau data akun apa pun dari aplikasi tersebut.
 
 ## Fitur
 
-- **Beranda:** total masuk, total keluar, selisih, total saldo dompet, dan
-  transaksi terbaru. Bisa difilter per bulan.
+- **Beranda:** total masuk, total keluar, selisih, total saldo dompet,
+  transaksi terbaru, dan tren masuk vs keluar 12 bulan terakhir (grafik
+  SVG, tanpa library eksternal). Bisa difilter per bulan.
 - **Transaksi:** tambah, ubah, dan hapus transaksi. Setiap transaksi punya
-  tanggal dan waktu, judul/deskripsi, kategori, dompet, jumlah (Rp), dan arah
-  (masuk, keluar, atau transfer).
-- **Filter:** jenis, kategori, dompet, pencarian judul, bulan, dan rentang
-  tanggal khusus.
-- **Laporan:** pengeluaran per kategori dengan persentase, serta saldo per
-  dompet. Bisa difilter per bulan.
-- **Anggaran:** total anggaran, total terpakai, sisa anggaran, dan uang harian
-  (sisa anggaran dibagi jumlah hari dalam bulan yang dipilih). Anggaran bisa
-  diubah per kategori.
-- **Dompet:** daftar dompet, saldo awal, dan saldo terhitung. Dompet baru bisa
-  ditambahkan.
-- **Kategori:** daftar kategori, tambah kategori baru, dan hapus kategori yang
-  belum dipakai di transaksi mana pun.
+  tanggal dan waktu, judul/deskripsi, kategori, dompet, jumlah (Rp), dan
+  arah (masuk, keluar, atau transfer).
+- **Transfer yang benar:** transfer punya dompet asal dan dompet tujuan,
+  memindahkan uang di antara keduanya, mengubah saldo kedua dompet, dan
+  tidak dihitung sebagai pemasukan atau pengeluaran.
+- **Filter, urutan, dan halaman:** jenis, kategori, dompet, pencarian
+  judul, bulan, rentang tanggal, urutan tanggal/jumlah/judul, dan
+  pagination 20 transaksi per halaman.
+- **Laporan:** pengeluaran per kategori dengan persentase, grafik donat
+  SVG, serta saldo per dompet. Bisa difilter per bulan.
+- **Anggaran:** total anggaran, total terpakai, sisa anggaran, dan uang
+  harian (sisa anggaran dibagi jumlah hari dalam bulan yang dipilih).
+  Formulir anggaran otomatis mengisi anggaran yang sudah tersimpan saat
+  kategori diubah.
+- **Dompet:** daftar dompet, saldo awal, dan saldo terhitung. Dompet baru
+  bisa ditambahkan. Dompet yang dipakai transaksi tidak bisa dihapus.
+- **Kategori:** daftar kategori, tambah kategori baru, dan hapus kategori
+  yang belum dipakai di transaksi mana pun.
+- **Tampilan:** mode gelap dan terang (tombol di atas, tersimpan di
+  browser), tata letak responsif untuk ponsel, empty state, loading state
+  untuk Supabase, notifikasi toast, dan dialog konfirmasi untuk tindakan
+  yang menghapus data.
 - **Penyimpanan:** semua data tersimpan di browser lewat `localStorage`
-  dengan kunci `financial-tracker-v1`. Tidak ada data yang dikirim ke server.
+  dengan kunci `financial-tracker-v1`. Tidak ada data yang dikirim ke
+  server, kecuali saat Anda sengaja memuat data dari Supabase Anda sendiri.
 - **Supabase (opsional, hanya baca):** tab Supabase menampilkan total
   bulanan dan kategori dari Supabase, tanpa mengubah fitur lokal di atas.
 
 Catatan perhitungan:
 
-- Saldo dompet = saldo awal + total masuk − total keluar untuk dompet itu.
-- Transfer dicatat sebagai perpindahan saja. Transfer tidak dihitung sebagai
-  pemasukan, pengeluaran, atau perubahan saldo dalam model sederhana ini.
+- Saldo dompet = saldo awal + total masuk − total keluar untuk dompet itu
+  − transfer keluar dari dompet itu + transfer masuk ke dompet itu.
+- Transfer tidak dihitung sebagai pemasukan atau pengeluaran.
 
 ## Data contoh
 
@@ -54,6 +64,51 @@ berlabel **"Data contoh (ilustrasi saja)"** dan setiap judulnya diawali
 
 Untuk menghapusnya, klik **Hapus Data Contoh** di banner atas. Untuk
 memuatnya kembali, klik **Muat Data Contoh** di Beranda.
+
+## Format CSV
+
+### Ekspor
+
+Klik **Ekspor CSV** di Beranda untuk mengunduh semua transaksi yang
+tersimpan saat ini sebagai `financial-tracker.csv`. Kolomnya:
+
+```csv
+date,title,category,wallet,amount,direction,toWallet
+```
+
+Kolom `toWallet` hanya diisi untuk transfer.
+
+### Impor
+
+Klik **Impor CSV** di Beranda, lalu pilih file CSV dengan header di atas.
+Aplikasi akan menampilkan pratinjau: baris valid, baris yang dilewati
+beserta alasannya, dan tombol konfirmasi sebelum impor benar-benar
+dilakukan.
+
+Ketentuan kolom:
+
+- `date`: `YYYY-MM-DD` atau `YYYY-MM-DD HH:MM`. Contoh: `2026-01-05`
+  atau `2026-01-05 08:00`.
+- `title`: judul atau deskripsi transaksi.
+- `category`: nama kategori. Kategori baru akan ditambahkan otomatis.
+- `wallet`: nama dompet asal. Dompet baru akan ditambahkan otomatis
+  dengan saldo awal 0.
+- `toWallet`: nama dompet tujuan, wajib untuk transfer, dan harus
+  berbeda dari dompet asal.
+- `amount`: angka dalam Rupiah, tanpa simbol Rp. Contoh: `250000`.
+- `direction`: salah satu dari `in` (masuk), `out` (keluar), atau
+  `transfer`. Nilai lain membuat baris dilewati, dengan alasan yang
+  ditampilkan di pratinjau.
+
+## Cadangan JSON
+
+Klik **Ekspor JSON** di Beranda untuk mengunduh cadangan lengkap
+(transaksi, dompet, kategori, anggaran) sebagai
+`financial-tracker-backup.json`. Klik **Impor JSON** untuk memulihkannya;
+data yang ada tetap dipertahankan dan data cadangan ditambahkan.
+
+Pengaturan Supabase sengaja tidak ikut diekspor dalam cadangan JSON,
+supaya file cadangan tidak pernah membawa kredensial.
 
 ## Supabase (opsional, hanya baca)
 
@@ -89,49 +144,24 @@ GET {supabase_url}/rest/v1/moni_monthly_categories?select=*&order=month_start
 dengan header `apikey` dan `Authorization: Bearer <publishable key>`
 yang Anda masukkan di tab Supabase.
 
-## Format CSV
-
-### Ekspor
-
-Klik **Ekspor CSV** di Beranda untuk mengunduh semua transaksi yang tersimpan
-saat ini sebagai `financial-tracker.csv`.
-
-### Impor
-
-Klik **Impor CSV** di Beranda, lalu pilih file CSV dengan header berikut:
-
-```csv
-date,title,category,wallet,amount,direction
-```
-
-Ketentuan kolom:
-
-- `date`: `YYYY-MM-DD` atau `YYYY-MM-DD HH:MM`. Contoh: `2026-01-05` atau
-  `2026-01-05 08:00`.
-- `title`: judul atau deskripsi transaksi.
-- `category`: nama kategori. Kategori baru akan ditambahkan otomatis.
-- `wallet`: nama dompet. Dompet baru akan ditambahkan otomatis dengan saldo
-  awal 0.
-- `amount`: angka dalam Rupiah, tanpa simbol Rp. Contoh: `250000`.
-- `direction`: salah satu dari `in` (masuk), `out` (keluar), atau
-  `transfer`. Nilai lain akan dianggap `out`.
-
-Contoh isi file:
-
-```csv
-date,title,category,wallet,amount,direction
-2026-01-05,Contoh: Gaji Bulanan,Gaji,Bank Contoh,10000000,in
-2026-01-06,Contoh: Belanja Harian,Belanja,Dompet Utama,250000,out
-```
-
-Baris tanpa tanggal, judul, atau jumlah yang valid akan dilewati saat impor.
-
 ## File
 
-- `index.html` — struktur halaman dan semua tampilan.
-- `styles.css` — gaya tampilan.
-- `app.js` — logika aplikasi, filter, anggaran, impor/ekspor CSV,
-  penyimpanan localStorage, dan koneksi Supabase hanya baca.
+- `index.html` — kerangka halaman dan semua tampilan.
+- `styles.css` — sistem desain (variabel warna, mode gelap, kartu,
+  formulir, toast, dan modal).
+- `js/utils.js` — format Rupiah/tanggal, helper bulan, dan unduhan file.
+- `js/state.js` — data lokal, data contoh, saldo dompet, dan
+  penyimpanan localStorage.
+- `js/charts.js` — grafik SVG: tren 12 bulan dan donat kategori.
+- `js/ui.js` — tema, navigasi, toast, dan dialog konfirmasi.
+- `js/transactions.js` — formulir, filter, urutan, dan pagination
+  transaksi, termasuk transfer dengan dompet tujuan.
+- `js/finance.js` — Beranda, Laporan, Anggaran, Dompet, dan Kategori.
+- `js/import-export.js` — pratinjau dan impor CSV, ekspor CSV, dan
+  cadangan JSON.
+- `js/supabase.js` — pengaturan, uji koneksi, dan tampilan data Supabase
+  hanya baca.
+- `js/main.js` — pengkabelan awal aplikasi saja.
 - `.env.example` — placeholder saja untuk variabel Supabase, bukan nilai
   asli.
 - `README.md` — dokumen ini.
