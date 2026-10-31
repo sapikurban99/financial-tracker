@@ -473,6 +473,225 @@ function importCsvFile(file) {
   reader.readAsText(file);
 }
 
+// ---- Supabase (optional, read-only) ----
+// Settings are stored only in this browser (localStorage). They are never
+// written to the repo. Use placeholders in .env.example, never real values.
+const SUPABASE_SETTINGS_KEY = "financial-tracker-supabase-v1";
+let supabaseSettings = loadSupabaseSettings();
+let supabaseMonthly = [];
+let supabaseCategories = [];
+
+function loadSupabaseSettings() {
+  try {
+    const raw = localStorage.getItem(SUPABASE_SETTINGS_KEY);
+    if (!raw) return { url: "", key: "" };
+    const parsed = JSON.parse(raw);
+    return {
+      url: String(parsed.url || "").trim().replace(/\/$/, ""),
+      key: String(parsed.key || "").trim(),
+    };
+  } catch (e) {
+    return { url: "", key: "" };
+  }
+}
+
+function saveSupabaseSettings() {
+  localStorage.setItem(SUPABASE_SETTINGS_KEY, JSON.stringify(supabaseSettings));
+}
+
+function setSupabaseStatus(message, kind) {
+  const statusEl = el("supabase-status");
+  statusEl.textContent = message;
+  statusEl.className = "status" + (kind === "success" ? " success" : kind === "error" ? " error" : "");
+}
+
+function supabaseConfigured() {
+  return Boolean(supabaseSettings.url && supabaseSettings.key);
+}
+
+function supabaseHeaders() {
+  return {
+    apikey: supabaseSettings.key,
+    Authorization: "Bearer " + supabaseSettings.key,
+    Accept: "application/json",
+  };
+}
+
+function supabaseErrorMessage(status, bodyText) {
+  const text = String(bodyText || "");
+  if (status === 404 || text.includes("PGRST205") || text.toLowerCase().includes("could not find the table")) {
+    return "Tabel Supabase belum ditemukan. Jalankan file SQL moni di Supabase terlebih dahulu untuk membuat tabel moni_monthly dan moni_monthly_categories, lalu klik Muat Data Supabase lagi.";
+  }
+  if (status === 401 || status === 403) {
+    return "Koneksi Supabase ditolak (HTTP " + status + "). Periksa kembali URL dan publishable key yang Anda masukkan, serta izin akses tabel di Supabase.";
+  }
+  if (status) return "Koneksi Supabase gagal (HTTP " + status + "). " + (text ? text.slice(0, 200) : "Periksa URL dan koneksi internet Anda.");
+  return "Koneksi Supabase gagal. Periksa URL, publishable key, dan koneksi internet Anda.";
+}
+
+async function supabaseFetch(table, query) {
+  const url = supabaseSettings.url + "/rest/v1/" + table + "?" + query;
+  const response = await fetch(url, { headers: supabaseHeaders() });
+  const bodyText = await response.text();
+  if (!response.ok) {
+    const error = new Error(supabaseErrorMessage(response.status, bodyText));
+    error.status = response.status;
+    throw error;
+  }
+  try {
+    return JSON.parse(bodyText);
+  } catch (e) {
+    return [];
+  }
+}
+
+function fmtMonthLabel(monthStart) {
+  if (!monthStart) return "-";
+  const d = new Date(String(monthStart).slice(0, 10) + "T00:00:00");
+  if (Number.isNaN(d.getTime())) return String(monthStart);
+  return d.toLocaleDateString("id-ID", { month: "long", year: "numeric" });
+}
+
+function renderSupabaseMonthly() {
+  const container = el("supabase-monthly-list");
+  container.innerHTML = "";
+  if (!supabaseMonthly.length) {
+    container.textContent = "Belum ada data bulanan Supabase yang dimuat.";
+    return;
+  }
+  const sorted = [...supabaseMonthly].sort((a, b) => String(b.month_start).localeCompare(String(a.month_start)));
+  sorted.forEach((row) => {
+    const div = document.createElement("div");
+    div.className = "item";
+    div.innerHTML = "<div><strong></strong><small></small></div><strong></strong>";
+    div.querySelector("strong").textContent = fmtMonthLabel(row.month_start);
+    div.querySelector("small").textContent =
+      "Masuk " + fmtRp(row.masuk) + " · Keluar " + fmtRp(row.keluar);
+    div.querySelectorAll("strong")[1].textContent = fmtRp(row.net_flow);
+    container.appendChild(div);
+  });
+}
+
+function renderSupabaseMonthDetail() {
+  const selected = el("supabase-month").value;
+  const row = supabaseMonthly.find((r) => String(r.month_start) === selected);
+  el("supabase-month-in").textContent = fmtRp(row ? row.masuk : 0);
+  el("supabase-month-out").textContent = fmtRp(row ? row.keluar : 0);
+  el("supabase-month-net").textContent = fmtRp(row ? row.net_flow : 0);
+
+  const container = el("supabase-category-list");
+  container.innerHTML = "";
+  if (!selected) {
+    container.textContent = "Pilih bulan untuk melihat kategori.";
+    return;
+  }
+  const cats = supabaseCategories.filter((c) => String(c.month_start) === selected);
+  if (!cats.length) {
+    container.textContent = "Tidak ada kategori Supabase untuk bulan ini.";
+    return;
+  }
+  const totalOut = cats
+    .filter((c) => c.direction === "out")
+    .reduce((s, c) => s + (Number(c.amount) || 0), 0);
+  const totalIn = cats
+    .filter((c) => c.direction === "in")
+    .reduce((s, c) => s + (Number(c.amount) || 0), 0);
+  [...cats]
+    .sort((a, b) => (Number(b.amount) || 0) - (Number(a.amount) || 0))
+    .forEach((c) => {
+      const directionLabel = c.direction === "in" ? "Masuk" : c.direction === "out" ? "Keluar" : c.direction;
+      const base = c.direction === "in" ? totalIn : totalOut;
+      const pct = base ? Math.round(((Number(c.amount) || 0) / base) * 100) : 0;
+      const div = document.createElement("div");
+      div.className = "item";
+      div.innerHTML = "<div><strong></strong><small></small></div><strong></strong>";
+      div.querySelector("strong").textContent = c.category;
+      div.querySelector("small").textContent = directionLabel + " · " + pct + "% dari total " + directionLabel.toLowerCase() + " bulan ini";
+      div.querySelectorAll("strong")[1].textContent = fmtRp(c.amount);
+      container.appendChild(div);
+    });
+}
+
+function refreshSupabaseMonthSelector() {
+  const select = el("supabase-month");
+  const previous = select.value;
+  const months = [...new Set(supabaseMonthly.map((r) => String(r.month_start)))].sort().reverse();
+  select.innerHTML = "";
+  if (!months.length) {
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "Belum ada bulan";
+    select.appendChild(opt);
+  }
+  months.forEach((monthStart) => {
+    const opt = document.createElement("option");
+    opt.value = monthStart;
+    opt.textContent = fmtMonthLabel(monthStart);
+    select.appendChild(opt);
+  });
+  if (previous && months.includes(previous)) select.value = previous;
+  else if (months.length) select.value = months[0];
+}
+
+function renderSupabase() {
+  refreshSupabaseMonthSelector();
+  renderSupabaseMonthly();
+  renderSupabaseMonthDetail();
+}
+
+async function testSupabaseConnection() {
+  if (!supabaseConfigured()) {
+    setSupabaseStatus("Masukkan Supabase URL dan publishable key terlebih dahulu, lalu simpan.", "error");
+    return;
+  }
+  setSupabaseStatus("Menguji koneksi Supabase…");
+  try {
+    const rows = await supabaseFetch("moni_monthly", "select=month_start&order=month_start&limit=1");
+    setSupabaseStatus(
+      "Koneksi Supabase berhasil. Tabel moni_monthly ditemukan" +
+        (Array.isArray(rows) ? " (" + rows.length + " baris pada uji limit 1)." : "."),
+      "success"
+    );
+  } catch (e) {
+    setSupabaseStatus(e.message, "error");
+  }
+}
+
+async function loadSupabaseData() {
+  if (!supabaseConfigured()) {
+    setSupabaseStatus("Masukkan Supabase URL dan publishable key terlebih dahulu, lalu simpan.", "error");
+    return;
+  }
+  setSupabaseStatus("Memuat data Supabase…");
+  try {
+    const [monthly, categories] = await Promise.all([
+      supabaseFetch("moni_monthly", "select=*&order=month_start"),
+      supabaseFetch("moni_monthly_categories", "select=*&order=month_start"),
+    ]);
+    supabaseMonthly = Array.isArray(monthly) ? monthly : [];
+    supabaseCategories = Array.isArray(categories) ? categories : [];
+    renderSupabase();
+    setSupabaseStatus(
+      "Data Supabase dimuat: " + supabaseMonthly.length + " bulan dan " +
+        supabaseCategories.length + " baris kategori. Data ini hanya baca.",
+      "success"
+    );
+  } catch (e) {
+    supabaseMonthly = [];
+    supabaseCategories = [];
+    renderSupabase();
+    setSupabaseStatus(e.message, "error");
+  }
+}
+
+function initSupabaseForm() {
+  el("supabase-url").value = supabaseSettings.url;
+  el("supabase-key").value = supabaseSettings.key;
+  if (supabaseConfigured()) {
+    setSupabaseStatus("Pengaturan Supabase tersimpan di browser ini. Klik Uji Koneksi atau Muat Data Supabase.");
+  }
+}
+
 // Navigation
 document.querySelectorAll(".tabs button").forEach((btn) => {
   btn.addEventListener("click", () => {
@@ -578,4 +797,41 @@ el("category-form").addEventListener("submit", (e) => {
   renderAll();
 });
 
+el("supabase-form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  supabaseSettings = {
+    url: el("supabase-url").value.trim().replace(/\/$/, ""),
+    key: el("supabase-key").value.trim(),
+  };
+  saveSupabaseSettings();
+  setSupabaseStatus(
+    supabaseConfigured()
+      ? "Pengaturan Supabase disimpan di browser ini saja. Klik Uji Koneksi atau Muat Data Supabase."
+      : "Pengaturan Supabase belum lengkap. Masukkan URL dan publishable key.",
+    supabaseConfigured() ? "success" : "error"
+  );
+});
+
+el("supabase-test-btn").addEventListener("click", testSupabaseConnection);
+el("supabase-load-btn").addEventListener("click", loadSupabaseData);
+el("supabase-month").addEventListener("input", renderSupabaseMonthDetail);
+
+el("supabase-clear-btn").addEventListener("click", () => {
+  if (!window.confirm("Hapus pengaturan Supabase dari browser ini?")) return;
+  supabaseSettings = { url: "", key: "" };
+  supabaseMonthly = [];
+  supabaseCategories = [];
+  try {
+    localStorage.removeItem(SUPABASE_SETTINGS_KEY);
+  } catch (e) {
+    // ignore storage errors on clear
+  }
+  el("supabase-url").value = "";
+  el("supabase-key").value = "";
+  renderSupabase();
+  setSupabaseStatus("Pengaturan Supabase telah dihapus dari browser ini.");
+});
+
 renderAll();
+initSupabaseForm();
+renderSupabase();

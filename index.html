@@ -19,6 +19,7 @@
     <button data-view="anggaran">Anggaran</button>
     <button data-view="dompet">Dompet</button>
     <button data-view="kategori">Kategori</button>
+    <button data-view="supabase">Supabase</button>
   </nav>
 
   <main>
@@ -186,6 +187,41 @@
         <button type="submit">Tambah Kategori</button>
       </form>
       <div id="category-list" class="list"></div>
+    </section>
+
+    <!-- SUPABASE -->
+    <section id="view-supabase" class="view">
+      <h2>Supabase</h2>
+      <p class="hint">Opsional dan hanya baca. Masukkan URL dan publishable key Supabase Anda di sini. Nilai tersebut hanya tersimpan di browser ini (localStorage) dan tidak pernah ditulis ke file repo. Untuk versi framework/Vercel di masa depan, gunakan variabel lingkungan NEXT_PUBLIC_SUPABASE_URL dan NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY di pengaturan proyek deployment, bukan di repo. Jalankan file SQL moni terlebih dahulu di Supabase agar tabel moni_monthly dan moni_monthly_categories tersedia.</p>
+      <form id="supabase-form" class="form">
+        <label>Supabase URL
+          <input type="url" id="supabase-url" placeholder="https://YOUR-PROJECT.supabase.co" />
+        </label>
+        <label>Supabase Publishable Key
+          <input type="password" id="supabase-key" placeholder="YOUR_PUBLISHABLE_KEY" autocomplete="off" />
+        </label>
+        <button type="submit">Simpan Pengaturan Supabase</button>
+        <button type="button" id="supabase-test-btn">Uji Koneksi</button>
+        <button type="button" id="supabase-load-btn">Muat Data Supabase</button>
+        <button type="button" id="supabase-clear-btn">Hapus Pengaturan Supabase</button>
+      </form>
+      <p id="supabase-status" class="status">Belum ada pengaturan Supabase yang disimpan.</p>
+
+      <h3>Data Bulanan Supabase</h3>
+      <div class="row">
+        <label>Bulan Supabase
+          <select id="supabase-month"></select>
+        </label>
+      </div>
+      <div class="cards">
+        <div class="card"><span>Masuk Bulan Terpilih</span><strong id="supabase-month-in">Rp 0</strong></div>
+        <div class="card"><span>Keluar Bulan Terpilih</span><strong id="supabase-month-out">Rp 0</strong></div>
+        <div class="card"><span>Selisih Bulan Terpilih</span><strong id="supabase-month-net">Rp 0</strong></div>
+      </div>
+      <h3>Kategori Bulan Terpilih</h3>
+      <div id="supabase-category-list" class="list"></div>
+      <h3>Semua Total Bulanan</h3>
+      <div id="supabase-monthly-list" class="list"></div>
     </section>
   </main>
 
